@@ -231,6 +231,10 @@ main() {
 	)
 
 	>&2 printf "waiting for openvpn (pid = %d)\n" "${openvpn_pid}"
+	
+	systemd-tty-ask-password-agent
+	sleep 0.5
+	systemd-tty-ask-password-agent
 
 	while ! hush nsdo ip link show "${tun}"; do
 		if ! is_running "${openvpn_pid}"; then
