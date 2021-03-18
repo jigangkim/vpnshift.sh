@@ -233,14 +233,11 @@ main() {
 	>&2 printf "waiting for openvpn (pid = %d)\n" "${openvpn_pid}"
 	
 	systemd-tty-ask-password-agent
-	sleep 0.5
+	sleep 0.3
 	systemd-tty-ask-password-agent
 
-	while ! hush nsdo ip link show "${tun}"; do
-		if ! is_running "${openvpn_pid}"; then
-			clean_exit 1
-		fi
-		sleep 0.2
+	while ! hush nsdo ip link show "${tun}" || ! is_running "${openvpn_pid}" ; do
+		sleep 0.1
 	done
 
 	# Removing the default route protects from exposure if openvpn exits
