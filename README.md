@@ -33,7 +33,7 @@ For more usage information, run vpnshift with no arguments.
 Usage (remote control of UR3 robot)
 --------
 
-    $ ./vpnshift -c larr-ur3.ovpn -u <USER> <PYTHON ENV WITH GYM_CUSTOM PACKAGE INSTALLED> test_dualur3env.py
+    $ sudo bash ./vpnshift -c <OVPN FILE> -u <USER> <PATH TO PYTHON> test_dualur3env.py
 
 Warnings
 --------
