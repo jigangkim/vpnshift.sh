@@ -30,10 +30,20 @@ For more usage information, run vpnshift with no arguments.
 
     $ vpnshift
 
-Usage (remote control of UR3 robot)
+Usage
 --------
 
-    $ sudo bash ./vpnshift -c <OVPN FILE> -u <USER> <PATH TO PYTHON> test_dualur3env.py
+Apply VPN to a single process.
+
+    $ sudo bash ./vpnshift -c <OVPN FILE> -u <USER> <PATH TO PYTHON> [<COMMAND> [<ARG>...]]
+
+Establish a VPN network namespace..
+
+    $ sudo bash ./vpnshift -c <OVPN FILE> -u <USER> ping google.com
+
+..and attach multiple processes to it.
+
+    $ sudo ip netns exec vpnshift sudo -u <USER> [<COMMAND> [<ARG>...]]
 
 Warnings
 --------
@@ -81,9 +91,10 @@ Acknowledgements
 I was first shown the power of network namespaces by [vpnns.sh][], which
 inspired (and provided a helpful starting point) for vpnshift.  I used a
 modified version of that script while I was still trying to get vpnshift
-to work.
+to work. The method is also detailed in a [blog post][] by the same author.
 
 [vpnns.sh]: https://gist.github.com/Schnouki/fd171bcb2d8c556e8fdf
+[blog post]: https://schnouki.net/post/2014/openvpn-for-a-single-application-on-linux/
 
 Similar Projects
 ----------------
