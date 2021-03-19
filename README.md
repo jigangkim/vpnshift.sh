@@ -35,7 +35,7 @@ Usage
 
 Apply VPN to a single process.
 
-    $ sudo bash ./vpnshift -c <OVPN FILE> -u <USER> <PATH TO PYTHON> [<COMMAND> [<ARG>...]]
+    $ sudo bash ./vpnshift -c <OVPN FILE> -u <USER> [<COMMAND> [<ARG>...]]
 
 Establish a VPN network namespace..
 
