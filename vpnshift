@@ -223,18 +223,21 @@ main() {
 		--cd "$(dirname "${config}")" \
 		--config "${config}" \
 		--dev "${tun}" \
-		--errors-to-stderr &
-
-	openvpn_pid=$(ps --ppid "$!" \
-		--format "pid" \
-		--no-headers
-	)
+		--errors-to-stderr \
+		--daemon \
+		--writepid "openvpn.pid"
+	
+	openvpn_pid=$(<$(dirname "${config}")/openvpn.pid)
+	# openvpn_pid=$(ps --ppid "$!" \
+	# 	--format "pid" \
+	# 	--no-headers
+	# )
 
 	>&2 printf "waiting for openvpn (pid = %d)\n" "${openvpn_pid}"
 	
-	systemd-tty-ask-password-agent
-	sleep 0.3
-	systemd-tty-ask-password-agent
+	# systemd-tty-ask-password-agent
+	# sleep 0.3
+	# systemd-tty-ask-password-agent
 
 	while ! hush nsdo ip link show "${tun}" || ! is_running "${openvpn_pid}" ; do
 		sleep 0.1

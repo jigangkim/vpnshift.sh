@@ -1,3 +1,4 @@
 *.ovpn
 *.ppk
 *.pub
+*.pid
