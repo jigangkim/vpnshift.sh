@@ -15,7 +15,7 @@
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 
-usage="usage: vpnshift -c <config> [<command> [<arg>...]]
+usage="usage: vpnshift -c <config> -i <interface> [<command> [<arg>...]]
 optional:
 	-u <user>      Execute <command> as <user>
 	-d             Toggle namespace debug shell
@@ -85,6 +85,11 @@ clean_exit() {
 		>&2 echo "openvpn exited"
 	fi
 
+	# cleanup ufw
+	if which ufw && [[ $(ufw status | head -n 1) == *active ]]; then
+		ufw route delete allow in on "${veth_default}" out on "${interface}" &>/dev/null
+	fi
+
 	# don't start cleaning up until openvpn is gone
 	hush ip netns delete "${namespace}"
 	hush rm --recursive --force "${namespace_dir}"
@@ -113,11 +118,12 @@ _debug=0
 main() {
 	local config=
 	local user="${SUDO_USER}"
-	while getopts "hdc:u:" opt; do
+	while getopts "hdc:i:u:" opt; do
 		case "${opt}" in
 			h) quick_die "${usage}" ;;
 			d) _debug=1 ;;
 			c) config="$(realpath "${OPTARG}")" ;;
+			i) interface="${OPTARG}" ;;
 			u) user="${OPTARG}" ;;
 			*) quick_die "unknown option: %s" "${opt}" ;;
 		esac
@@ -126,6 +132,10 @@ main() {
 
 	if [[ -z "${config}" ]]; then
 		quick_die "openvpn config is required"
+	fi
+
+	if [[ -z "${interface}" ]]; then
+		quick_die "physical interface required to send packets through ufw"
 	fi
 
 	if [[ -z "${user}" ]]; then
@@ -211,6 +221,11 @@ main() {
 		"nameserver %s\nnameserver %s\n" \
 		"1.1.1.1" \
 		"1.0.0.1"
+
+	# allow packets to flow through ufw
+	if which ufw && [[ $(ufw status | head -n 1) == *active ]]; then
+		ufw route allow in on "${veth_default}" out on "${interface}"
+	fi
 
 	# drop in a shell to debug namespace connectivity ... the exit trap will catch exit from this and clean up
 	if [[ "$_debug" == 1 ]]; then
