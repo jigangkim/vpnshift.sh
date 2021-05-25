@@ -35,11 +35,11 @@ Usage
 
 Apply VPN to a single process.
 
-    $ sudo bash ./vpnshift -c <OVPN FILE> -u <USER> [<COMMAND> [<ARG>...]]
+    $ sudo bash ./vpnshift -c <OVPN FILE> -i <INTERFACE> -u <USER> [<COMMAND> [<ARG>...]]
 
 Establish a VPN network namespace..
 
-    $ sudo bash ./vpnshift -c <OVPN FILE> -u <USER> ping google.com
+    $ sudo bash ./vpnshift -c <OVPN FILE> -i <INTERFACE> -u <USER> ping google.com
 
 ..and attach multiple processes to it.
 
