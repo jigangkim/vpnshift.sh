@@ -147,8 +147,16 @@ main() {
 	if [[ -z "${cmd}" ]]; then
 		cmd="${SHELL}"
 	fi
+	
+	config_name=$(basename "$config" .ovpn)
+	namespace="vpnshift_${config_name}"
+	namespace_dir="/etc/netns/${namespace}"
+	veth_default="${config_name}_vethdef"
+	veth_vpn="${config_name}_vethvpn"
+	veth_default=${veth_default:0:15}
+	veth_vpn=${veth_vpn:0:15}
 
-	must ip netns add vpnshift
+	must ip netns add "${namespace}"
 	must mkdir --parents "${namespace_dir}"
 
 	# Set up loopback interface
@@ -164,13 +172,20 @@ main() {
 
 	must ip link set "${veth_default}" up
 	must nsdo ip link set "${veth_vpn}" up
+	
+	num_netns=$(ip netns list | wc -l)
+	addr1=$((2*$num_netns))
+	addr2=$((2*$num_netns+1))
+	subnet_veth1="10.10.10.${addr1}"
+	subnet_veth2="10.10.10.${addr2}"
+	>&2 printf "veth subnet is %s\n" "${subnet_veth1}"
 
-	must ip address add "10.10.10.10/31" dev "${veth_default}"
+	must ip address add "${subnet_veth1}/31" dev "${veth_default}"
 	must nsdo ip \
-		address add "10.10.10.11/31" dev "${veth_vpn}"
+		address add "${subnet_veth2}/31" dev "${veth_vpn}"
 
 	must nsdo ip \
-		route add default via "10.10.10.10" dev "${veth_vpn}"
+		route add default via "${subnet_veth1}" dev "${veth_vpn}"
 
 	# Set up NAT and IP forwarding
 	must sysctl --quiet net.ipv4.ip_forward=1
@@ -192,14 +207,14 @@ main() {
 		must firewall-cmd -q --zone="${namespace}" --change-interface="${veth_default}"
 
 		# apply our source range to our zone
-		echo "[firewalld] adding 10.10.10.10/31 as source for ${namespace}"
-		must firewall-cmd -q --zone="${namespace}" --add-source=10.10.10.10/31
+		echo "[firewalld] adding ${subnet_veth1}/31 as source for ${namespace}"
+		must firewall-cmd -q --zone="${namespace}" --add-source=${subnet_veth1}/31
 
 		# enable masquerading from our new source range on the default zone
 		default_zone=$(firewall-cmd --get-default-zone)
 		echo "[firewalld] enabling masquerading on default zone: ${default_zone}"
 		must firewall-cmd -q --zone="${default_zone}" --add-masquerade
-		must firewall-cmd -q --zone="${default_zone}"  --add-rich-rule=\'rule family="ipv4" source address="10.10.10.10/31" masquerade\'
+		must firewall-cmd -q --zone="${default_zone}"  --add-rich-rule=\'rule family="ipv4" source address="${subnet_veth1}/31" masquerade\'
 
 		# optionally allow ports, services, etc. on our zone
 
@@ -213,7 +228,7 @@ main() {
 		#must firewall-cmd -q --zone="${namespace}" --add-service=dns
 
 	else
-		must iptables --table "nat" --append "POSTROUTING" --jump "MASQUERADE" --source "10.10.10.10/31"
+		must iptables --table "nat" --append "POSTROUTING" --jump "MASQUERADE" --source "${subnet_veth1}/31"
 	fi
 
 	# Set up DNS inside the new namespace
@@ -233,16 +248,16 @@ main() {
 	fi
 
 	# Launch openvpn
-	local tun="tunvpn"
+	local tun="tunvpn_${config_name}"
 	nsdo openvpn \
 		--cd "$(dirname "${config}")" \
 		--config "${config}" \
 		--dev "${tun}" \
 		--errors-to-stderr \
 		--daemon \
-		--writepid "openvpn.pid"
+		--writepid "openvpn_${config_name}.pid"
 	
-	openvpn_pid=$(<$(dirname "${config}")/openvpn.pid)
+	openvpn_pid=$(<$(dirname "${config}")/"openvpn_${config_name}.pid")
 	# openvpn_pid=$(ps --ppid "$!" \
 	# 	--format "pid" \
 	# 	--no-headers
@@ -261,7 +276,7 @@ main() {
 	# Removing the default route protects from exposure if openvpn exits
 	# prematurely.
 	must nsdo ip \
-		route delete default via "10.10.10.10" dev "${veth_vpn}"
+		route delete default via "${subnet_veth1}" dev "${veth_vpn}"
 
 	nsdo sudo -u "${user}" "${cmd}" "$@"
 }
@@ -274,12 +289,12 @@ elif [[ "$(id -u)" != 0 ]]; then
 fi
 
 # Stuff needed by clean_exit() to restore previous state.
-namespace="vpnshift"
-namespace_dir="/etc/netns/${namespace}"
+namespace= # This is set later.
+namespace_dir= # This is set later.
 forward="$(sysctl --values "net.ipv4.ip_forward")"
 rules="$(iptables-save -t nat)"
-veth_default="veth_default"
-veth_vpn="veth_vpn"
+veth_default= # This is set later.
+veth_vpn= # This is set later.
 
 openvpn_pid= # This is set later.
 
