@@ -42,8 +42,9 @@ Establish a VPN network namespace..
     $ sudo bash ./vpnshift -c <OVPN FILE> -i <INTERFACE> -u <USER> ping google.com
 
 ..and attach multiple processes to it.
-
-    $ sudo ip netns exec vpnshift sudo -u <USER> [<COMMAND> [<ARG>...]]
+    
+    $ ip netns list # list available network namespace
+    $ sudo ip netns exec <network namespace> sudo -u <USER> [<COMMAND> [<ARG>...]]
 
 Warnings
 --------
