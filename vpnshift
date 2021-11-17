@@ -15,9 +15,15 @@
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 
-usage="usage: vpnshift -c <config> -i <interface> [<command> [<arg>...]]
-optional:
+usage="usage: vpnshift -c <config> -i <interface> -u <user> [<command> [<arg>...]]
+required:
+	-c <config>    Path to OpenVPN configuration file
+	-i <interface> Network interface
 	-u <user>      Execute <command> as <user>
+
+optional:
+	-a <auth>      Credentials to forward to openvpn --auth-user-pass option
+				Note: <auth> must follow \"<vpn_user>\\\n<vpn_password>\" format
 	-d             Toggle namespace debug shell
 
 if not otherwise specified:
@@ -118,13 +124,14 @@ _debug=0
 main() {
 	local config=
 	local user="${SUDO_USER}"
-	while getopts "hdc:i:u:" opt; do
+	while getopts "hdc:i:u:a:" opt; do
 		case "${opt}" in
 			h) quick_die "${usage}" ;;
 			d) _debug=1 ;;
 			c) config="$(realpath "${OPTARG}")" ;;
 			i) interface="${OPTARG}" ;;
 			u) user="${OPTARG}" ;;
+			a) auth="${OPTARG}" ;;
 			*) quick_die "unknown option: %s" "${opt}" ;;
 		esac
 	done
@@ -155,6 +162,9 @@ main() {
 	veth_vpn="${config_name}_vethvpn"
 	veth_default=${veth_default:0:15}
 	veth_vpn=${veth_vpn:0:15}
+	
+	echo "Configuration name is ${config_name}"
+	echo "Network namespace is ${namespace}"
 
 	must ip netns add "${namespace}"
 	must mkdir --parents "${namespace_dir}"
@@ -249,13 +259,26 @@ main() {
 
 	# Launch openvpn
 	local tun="tunvpn_${config_name}"
-	nsdo openvpn \
-		--cd "$(dirname "${config}")" \
-		--config "${config}" \
-		--dev "${tun}" \
-		--errors-to-stderr \
-		--daemon \
-		--writepid "openvpn_${config_name}.pid"
+	if [[ -z "${auth}" ]]; then
+		echo "Enter OpenVPN credentials in the following prompt."
+		nsdo openvpn \
+			--cd "$(dirname "${config}")" \
+			--config "${config}" \
+			--dev "${tun}" \
+			--errors-to-stderr \
+			--daemon \
+			--writepid "openvpn_${config_name}.pid"
+	else
+		echo "OpenVPN credentials forwarded to --auth-user-pass."
+		nsdo openvpn \
+			--cd "$(dirname "${config}")" \
+			--config "${config}" \
+			--dev "${tun}" \
+			--errors-to-stderr \
+			--daemon \
+			--writepid "openvpn_${config_name}.pid" \
+			--auth-user-pass <(echo -e "${auth}")
+	fi
 	
 	openvpn_pid=$(<$(dirname "${config}")/"openvpn_${config_name}.pid")
 	# openvpn_pid=$(ps --ppid "$!" \
