@@ -24,6 +24,7 @@ required:
 optional:
 	-a <auth>      Credentials to forward to openvpn --auth-user-pass option
 				Note: <auth> must follow \"<vpn_user>\\\n<vpn_password>\" format
+	-v <veth_addr> Manually specify veth address (10.10.10.(2*$veth_addr), 10.10.10.(2*$veth_addr+1))
 	-d             Toggle namespace debug shell
 
 if not otherwise specified:
@@ -124,7 +125,7 @@ _debug=0
 main() {
 	local config=
 	local user="${SUDO_USER}"
-	while getopts "hdc:i:u:a:" opt; do
+	while getopts "hdc:i:u:a:v:" opt; do
 		case "${opt}" in
 			h) quick_die "${usage}" ;;
 			d) _debug=1 ;;
@@ -132,6 +133,7 @@ main() {
 			i) interface="${OPTARG}" ;;
 			u) user="${OPTARG}" ;;
 			a) auth="${OPTARG}" ;;
+			v) veth_addr="${OPTARG}" ;;
 			*) quick_die "unknown option: %s" "${opt}" ;;
 		esac
 	done
@@ -183,9 +185,14 @@ main() {
 	must ip link set "${veth_default}" up
 	must nsdo ip link set "${veth_vpn}" up
 	
-	num_netns=$(ip netns list | wc -l)
-	addr1=$((2*$num_netns))
-	addr2=$((2*$num_netns+1))
+	if [[ -z "${veth_addr}" ]]; then
+	    num_netns=$(ip netns list | wc -l)
+	    addr1=$((2*$num_netns))
+	    addr2=$((2*$num_netns+1))
+	else
+	    addr1=$((2*$veth_addr))
+	    addr2=$((2*$veth_addr+1))
+	fi
 	subnet_veth1="10.10.10.${addr1}"
 	subnet_veth2="10.10.10.${addr2}"
 	>&2 printf "veth subnet is %s\n" "${subnet_veth1}"
